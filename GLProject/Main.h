@@ -6,6 +6,12 @@ class Main
 public:
 	Main();
 	~Main();
+	GLvoid KillGLWindow(GLvoid);
+	int DrawGLScene(GLvoid);
+	int InitGL(GLvoid);
+	GLvoid ReSizeGLScene(GLsizei, GLsizei);
+	BOOL CreateGLWindow(char*, int, int, int, bool);
+
 private:
 	HGLRC hRC = NULL;
 	HDC hDC = NULL;
