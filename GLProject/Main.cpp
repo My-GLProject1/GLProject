@@ -21,6 +21,9 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
+GLfloat rtri;
+GLfloat rquad;
+
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
 		height = 1;
@@ -55,6 +58,7 @@ int DrawGLScene(GLvoid) {
 	glLoadIdentity();
 
 	glTranslatef(-1.5f, 0.0f, -6.0f);
+	glRotatef(rtri, 0.0f, 1.0f, 0.0f);
 	glBegin(GL_TRIANGLES);
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glVertex3f(0.0f, 1.0f, 0.0f);
@@ -65,6 +69,7 @@ int DrawGLScene(GLvoid) {
 	glEnd();
 	
 	glTranslatef(3.0f, 0.0f, 0.0f);
+	glRotatef(rquad, 1.0f, 0.0f, 0.0f);
 	glColor3f(0.5f, 0.5f, 1.0f);
 	glBegin(GL_QUADS);
 		glVertex3f(-1.0f, 1.0f, 0.0f);
@@ -72,6 +77,9 @@ int DrawGLScene(GLvoid) {
 		glVertex3f(1.0f, -1.0f, 0.0f);
 		glVertex3f(-1.0f, -1.0f, 0.0f);
 	glEnd();
+
+	rtri += 0.2f;
+	rquad -= 0.15f;
 	return TRUE;
 }
 
