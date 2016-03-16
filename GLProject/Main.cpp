@@ -63,23 +63,74 @@ int DrawGLScene(GLvoid) {
 		glColor3f(1.0f, 0.0f, 0.0f);
 		glVertex3f(0.0f, 1.0f, 0.0f);
 		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(-1.0f, -1.0f, 0.0f);
+		glVertex3f(-1.0f, -1.0f, 1.0f);
 		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(1.0f, -1.0f, 0.0f);
+		glVertex3f(1.0f, -1.0f, 1.0f);
+
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3f(0.0f, 1.0f, 0.0f);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3f(1.0f, -1.0f, 1.0f);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3f(1.0f, -1.0f, -1.0f);
+
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3f(0.0f, 1.0f, 0.0f);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3f(1.0f, -1.0f, -1.0f);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3f(0.0f, 1.0f, 0.0f);
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3f(-1.0f, -1.0f, -1.0f);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3f(-1.0f, -1.0f, 1.0f);
 	glEnd();
 	
 	glTranslatef(3.0f, 0.0f, 0.0f);
 	glRotatef(rquad, 1.0f, 0.0f, 0.0f);
-	glColor3f(0.5f, 0.5f, 1.0f);
 	glBegin(GL_QUADS);
-		glVertex3f(-1.0f, 1.0f, 0.0f);
-		glVertex3f(1.0f, 1.0f, 0.0f);
-		glVertex3f(1.0f, -1.0f, 0.0f);
-		glVertex3f(-1.0f, -1.0f, 0.0f);
+		glColor3f(0.0f, 1.0f, 0.0f);
+		glVertex3f( 1.0f, 1.0f,-1.0f);
+		glVertex3f(-1.0f, 1.0f,-1.0f);
+		glVertex3f(-1.0f, 1.0f, 1.0f);
+		glVertex3f( 1.0f, 1.0f, 1.0f);
+
+		glColor3f(1.0f, 0.5f, 0.0f);
+		glVertex3f( 1.0f,-1.0f, 1.0f);
+		glVertex3f(-1.0f,-1.0f, 1.0f);
+		glVertex3f(-1.0f,-1.0f,-1.0f);
+		glVertex3f( 1.0f,-1.0f,-1.0f);
+
+		glColor3f(1.0f, 0.0f, 0.0f);
+		glVertex3f( 1.0f, 1.0f, 1.0f);
+		glVertex3f(-1.0f, 1.0f, 1.0f);
+		glVertex3f(-1.0f,-1.0f, 1.0f);
+		glVertex3f( 1.0f,-1.0f, 1.0f);
+
+		glColor3f(1.0f, 1.0f, 0.0f);
+		glVertex3f( 1.0f,-1.0f,-1.0f);
+		glVertex3f(-1.0f,-1.0f,-1.0f);
+		glVertex3f(-1.0f, 1.0f,-1.0f);
+		glVertex3f( 1.0f, 1.0f,-1.0f);
+
+		glColor3f(0.0f, 0.0f, 1.0f);
+		glVertex3f(-1.0f, 1.0f, 1.0f);
+		glVertex3f(-1.0f, 1.0f,-1.0f);
+		glVertex3f(-1.0f,-1.0f,-1.0f);
+		glVertex3f(-1.0f,-1.0f, 1.0f);
+
+		glColor3f(1.0f, 0.0f, 1.0f);
+		glVertex3f( 1.0f, 1.0f,-1.0f);
+		glVertex3f( 1.0f, 1.0f, 1.0f);
+		glVertex3f( 1.0f,-1.0f, 1.0f);
+		glVertex3f( 1.0f,-1.0f,-1.0f);
 	glEnd();
 
-	rtri += 0.2f;
-	rquad -= 0.15f;
+	rtri += 0.02f;
+	rquad -= 0.015f;
 	return TRUE;
 }
 
