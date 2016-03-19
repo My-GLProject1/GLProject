@@ -1,4 +1,5 @@
 #include "Main.h"
+#include "Include.h"
 
 Main::Main() {}
 
@@ -11,6 +12,7 @@ static GLvoid ReSizeGLScene(GLsizei, GLsizei);
 BOOL CreateGLWindow(char*, int, int, int, bool);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
+int LoadGLTextures();
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -21,8 +23,11 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
-GLfloat rtri;
-GLfloat rquad;
+GLfloat xrot;
+GLfloat yrot;
+GLfloat zrot;
+
+GLuint texture[1];
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -42,6 +47,11 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 
 int InitGL(GLvoid) {
 
+	if (!LoadGLTextures()) {
+		return FALSE;
+	}
+
+	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -57,80 +67,49 @@ int DrawGLScene(GLvoid) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	glTranslatef(-1.5f, 0.0f, -6.0f);
-	glRotatef(rtri, 0.0f, 1.0f, 0.0f);
-	glBegin(GL_TRIANGLES);
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(-1.0f, -1.0f, 1.0f);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(1.0f, -1.0f, 1.0f);
+	glTranslatef(0.0f, 0.0f, -5.0f);
+	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
+	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
+	glRotatef(zrot, 0.0f, 0.0f, 1.0f);
 
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(1.0f, -1.0f, 1.0f);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(1.0f, -1.0f, -1.0f);
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
 
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(1.0f, -1.0f, -1.0f);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(-1.0f, -1.0f, -1.0f);
-
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f(0.0f, 1.0f, 0.0f);
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(-1.0f, -1.0f, -1.0f);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f(-1.0f, -1.0f, 1.0f);
-	glEnd();
-	
-	glTranslatef(3.0f, 0.0f, 0.0f);
-	glRotatef(rquad, 1.0f, 0.0f, 0.0f);
 	glBegin(GL_QUADS);
-		glColor3f(0.0f, 1.0f, 0.0f);
-		glVertex3f( 1.0f, 1.0f,-1.0f);
-		glVertex3f(-1.0f, 1.0f,-1.0f);
-		glVertex3f(-1.0f, 1.0f, 1.0f);
-		glVertex3f( 1.0f, 1.0f, 1.0f);
-
-		glColor3f(1.0f, 0.5f, 0.0f);
-		glVertex3f( 1.0f,-1.0f, 1.0f);
-		glVertex3f(-1.0f,-1.0f, 1.0f);
-		glVertex3f(-1.0f,-1.0f,-1.0f);
-		glVertex3f( 1.0f,-1.0f,-1.0f);
-
-		glColor3f(1.0f, 0.0f, 0.0f);
-		glVertex3f( 1.0f, 1.0f, 1.0f);
-		glVertex3f(-1.0f, 1.0f, 1.0f);
-		glVertex3f(-1.0f,-1.0f, 1.0f);
-		glVertex3f( 1.0f,-1.0f, 1.0f);
-
-		glColor3f(1.0f, 1.0f, 0.0f);
-		glVertex3f( 1.0f,-1.0f,-1.0f);
-		glVertex3f(-1.0f,-1.0f,-1.0f);
-		glVertex3f(-1.0f, 1.0f,-1.0f);
-		glVertex3f( 1.0f, 1.0f,-1.0f);
-
-		glColor3f(0.0f, 0.0f, 1.0f);
-		glVertex3f(-1.0f, 1.0f, 1.0f);
-		glVertex3f(-1.0f, 1.0f,-1.0f);
-		glVertex3f(-1.0f,-1.0f,-1.0f);
-		glVertex3f(-1.0f,-1.0f, 1.0f);
-
-		glColor3f(1.0f, 0.0f, 1.0f);
-		glVertex3f( 1.0f, 1.0f,-1.0f);
-		glVertex3f( 1.0f, 1.0f, 1.0f);
-		glVertex3f( 1.0f,-1.0f, 1.0f);
-		glVertex3f( 1.0f,-1.0f,-1.0f);
+		// Front Face
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, 1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, 1.0f);
+		// Back Face
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		// Top Face
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, 1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		// Bottom Face
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f,- 1.0f, 1.0f);
+		// Right Face
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
+		// Left Face
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
 	glEnd();
 
-	rtri += 0.02f;
-	rquad -= 0.015f;
+	xrot += 0.3f;
+	yrot += 0.2f;
+	zrot += 0.4f;
 	return TRUE;
 }
 
@@ -375,4 +354,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	KillGLWindow();
 	return (msg.wParam);
+}
+
+int LoadGLTextures() {
+
+	int width, height;
+	unsigned char* image = SOIL_load_image("frowny.bmp", &width, &height, 0, SOIL_LOAD_RGB);
+	if (image == NULL) {
+		MessageBox(NULL, TEXT("Error loading texture image"), TEXT("ERROR"), MB_OK | MB_ICONEXCLAMATION);
+		return false;
+	}
+
+	glGenTextures(1, &texture[0]);
+
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return TRUE;
 }
