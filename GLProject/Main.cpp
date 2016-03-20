@@ -27,8 +27,8 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
-BOOL light;
-BOOL lp, fp;
+BOOL light, blend;
+BOOL lp, fp, bp;
 
 GLfloat xrot, yrot;
 GLfloat xspeed, yspeed;
@@ -66,6 +66,9 @@ int InitGL(GLvoid) {
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -391,16 +394,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 						z += 0.02;
 					}
 					if (keys[VK_UP]) {
-						xspeed -= 0.01f;
+						xspeed -= 0.001f;
 					}
 					if (keys[VK_DOWN]) {
-						xspeed += 0.01f;
+						xspeed += 0.001f;
 					}
 					if (keys[VK_RIGHT]) {
-						yspeed += 0.01f;
+						yspeed += 0.001f;
 					}
 					if (keys[VK_LEFT]) {
-						yspeed -= 0.01f;
+						yspeed -= 0.001f;
+					}
+					if (keys['B'] && !bp) {
+						bp = TRUE;
+						blend = !blend;
+						if (blend) {
+							glEnable(GL_BLEND);
+							glDisable(GL_DEPTH_TEST);
+						}
+						else {
+							glDisable(GL_BLEND);
+							glEnable(GL_DEPTH_TEST);
+						}
+					}
+					if (!keys['B']) {
+						bp = FALSE;
 					}
 					if (keys[VK_F1]) {
 						keys[VK_F1] = FALSE;
@@ -422,7 +440,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 int LoadGLTextures() {
 
 	int width, height;
-	unsigned char* image = SOIL_load_image("Data/Crate.bmp", &width, &height, 0, SOIL_LOAD_RGB);
+	unsigned char* image = SOIL_load_image("Data/glass.bmp", &width, &height, 0, SOIL_LOAD_RGB);
 	
 	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
