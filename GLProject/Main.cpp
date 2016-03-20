@@ -39,8 +39,6 @@ bool keys[256];
 GLuint texture[1];
 GLuint box, top, xloop, yloop;
 
-GLYPHMETRICSFLOAT gmf[256];
-
 GLfloat xrot, yrot;
 
 static GLfloat boxcol[5][3] = {
@@ -73,7 +71,8 @@ int InitGL(GLvoid) {
 		return FALSE;
 	}
 	BuildLists();
-	glEnable(GL_TEXTURE_2D);
+	BuildFont();
+
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -83,11 +82,11 @@ int InitGL(GLvoid) {
 
 	glEnable(GL_LIGHT0);
 	glEnable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	BuildFont();
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
 
 	return TRUE;
 }
@@ -95,7 +94,6 @@ int InitGL(GLvoid) {
 int DrawGLScene(GLvoid) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	for (yloop = 1; yloop < 6; yloop++) {
 		for (xloop = 0; xloop < yloop; xloop++) {
 			glLoadIdentity();
@@ -112,14 +110,13 @@ int DrawGLScene(GLvoid) {
 		}
 	}
 	glLoadIdentity();
-	glTranslatef(0.0f, 0.0f, -10.0f);
+	glTranslatef(1.1f*float(cos(rot / 16.0f)), 0.8f*float(sin(rot / 20.0f)), -3.0f);
 	glRotatef(rot, 1.0f, 0.0f, 0.0f);
-	glRotatef(rot*1.5f, 0.0f, 1.0f, 0.0f);
+	glRotatef(rot*1.2f, 0.0f, 1.0f, 0.0f);
 	glRotatef(rot*1.4f, 0.0f, 0.0f, 1.0f);
-	glColor3f(1.0f * float(cos(rot/20.0f)), 1.0f * float(sin(rot/25.0f)), 1.0f - 0.5f * float(cos(rot/17.0f)));
-	glRasterPos2f(-0.5f, 0);
-	glPrint("NeHe - %3.2f", rot / 50);
-	rot += 0.05f;
+	glTranslatef(-0.35f, -0.35f, 0.1f);
+	glPrint("N");
+	rot += 0.01f;
 	return TRUE;
 }
 
@@ -383,7 +380,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 int LoadGLTextures() {
 
 	int width, height;
-	unsigned char* image = SOIL_load_image("Data/Cube.bmp", &width, &height, 0, SOIL_LOAD_RGB);
+	unsigned char* image = SOIL_load_image("Data/Lights.bmp", &width, &height, 0, SOIL_LOAD_RGB);
 	
 	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
@@ -446,35 +443,24 @@ GLvoid BuildLists() {
 
 GLvoid BuildFont(GLvoid) {
 
+	GLYPHMETRICSFLOAT gmf[256];
 	HFONT font;
 	base = glGenLists(96);
 
-	font = CreateFont(-12, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE | DEFAULT_PITCH, "Comic Sans MS");
+	font = CreateFont(-12, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, SYMBOL_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE | DEFAULT_PITCH, "WingDings");
 	SelectObject(hDC, font);
-	wglUseFontOutlines(hDC, 0, 255, base, 0.0f, 0.2f, WGL_FONT_POLYGONS, gmf);
+	wglUseFontOutlines(hDC, 0, 255, base, 0.1f, 0.2f, WGL_FONT_POLYGONS, gmf);
 }
 
 GLvoid KillFont(GLvoid) {
 	glDeleteLists(base, 96);
 }
 
-GLvoid glPrint(const char* fmt, ...) {
-	float length = 0;
-	char text[256];
-	va_list ap;
+GLvoid glPrint(const char* text, ...) {
 
-	if (fmt == NULL) {
+	if (text == NULL) {
 		return;
 	}
-
-	va_start(ap, fmt);
-		vsprintf_s(text, fmt, ap);
-	va_end(ap);
-
-	for (unsigned int loop = 0; loop < strlen(text); loop++) {
-		length += gmf[text[loop]].gmfCellIncX;
-	}
-	glTranslatef(-length / 2.0f, 0.0f, 0.0f);
 
 	glPushAttrib(GL_LIST_BIT);
 	glListBase(base);
