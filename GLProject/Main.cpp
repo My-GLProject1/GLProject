@@ -1,5 +1,9 @@
 #include "Main.h"
-#include "Include.h"
+#include <stdio.h>
+#include <Windows.h>
+#include <gl/GL.h>
+#include <gl/GLU.h>
+#include "SOIL.h"
 
 Main::Main() {}
 
@@ -47,9 +51,9 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 
 int InitGL(GLvoid) {
 
-	if (!LoadGLTextures()) {
-		return FALSE;
-	}
+	//if (!LoadGLTextures()) {
+		//return FALSE;
+	//}
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
@@ -358,14 +362,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 int LoadGLTextures() {
 
-	int width, height;
-	unsigned char* image = SOIL_load_image("frowny.bmp", &width, &height, 0, SOIL_LOAD_RGB);
-	if (image == NULL) {
-		MessageBox(NULL, TEXT("Error loading texture image"), TEXT("ERROR"), MB_OK | MB_ICONEXCLAMATION);
-		return false;
-	}
+	texture[0] = SOIL_load_OGL_texture
+		("Data/NeHe.bmp", SOIL_LOAD_AUTO,
+			SOIL_CREATE_NEW_ID,
+			SOIL_FLAG_INVERT_Y);
 
-	glGenTextures(1, &texture[0]);
+	if (texture[0] == 0) {
+		return FALSE;
+	}
 
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
