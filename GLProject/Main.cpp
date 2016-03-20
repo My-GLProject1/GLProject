@@ -30,7 +30,7 @@ HWND hwnd = NULL;
 HINSTANCE hInstance;
 
 GLuint base;
-GLfloat cnt1, cnt2;
+GLfloat rot;
 
 bool fullscreen = TRUE;
 bool active = TRUE;
@@ -38,6 +38,8 @@ bool keys[256];
 
 GLuint texture[1];
 GLuint box, top, xloop, yloop;
+
+GLYPHMETRICSFLOAT gmf[256];
 
 GLfloat xrot, yrot;
 
@@ -110,13 +112,14 @@ int DrawGLScene(GLvoid) {
 		}
 	}
 	glLoadIdentity();
-	glTranslatef(0.0f, 0.0f, -1.0f);
-	glColor3f(1.0f * float(cos(cnt1)), 1.0f * float(sin(cnt2)), 1.0f - 0.5f * float(cos(cnt1 + cnt2)));
+	glTranslatef(0.0f, 0.0f, -10.0f);
+	glRotatef(rot, 1.0f, 0.0f, 0.0f);
+	glRotatef(rot*1.5f, 0.0f, 1.0f, 0.0f);
+	glRotatef(rot*1.4f, 0.0f, 0.0f, 1.0f);
+	glColor3f(1.0f * float(cos(rot/20.0f)), 1.0f * float(sin(rot/25.0f)), 1.0f - 0.5f * float(cos(rot/17.0f)));
 	glRasterPos2f(-0.5f, 0);
-	glPrint("Active OpenGL Text With NeHe - %7.2f", cnt1);
-
-	cnt1 += 0.051f;
-	cnt2 += 0.005f;
+	glPrint("NeHe - %3.2f", rot / 50);
+	rot += 0.05f;
 	return TRUE;
 }
 
@@ -442,16 +445,13 @@ GLvoid BuildLists() {
 }
 
 GLvoid BuildFont(GLvoid) {
-	HFONT font;
-	HFONT oldfont;
 
+	HFONT font;
 	base = glGenLists(96);
 
-	font = CreateFont(-24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE | DEFAULT_PITCH, "Courier New");
-	oldfont = (HFONT)SelectObject(hDC, font);
-	wglUseFontBitmaps(hDC, 32, 96, base);
-	SelectObject(hDC, oldfont);
-	DeleteObject(font);
+	font = CreateFont(-12, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE | DEFAULT_PITCH, "Comic Sans MS");
+	SelectObject(hDC, font);
+	wglUseFontOutlines(hDC, 0, 255, base, 0.0f, 0.2f, WGL_FONT_POLYGONS, gmf);
 }
 
 GLvoid KillFont(GLvoid) {
@@ -459,6 +459,7 @@ GLvoid KillFont(GLvoid) {
 }
 
 GLvoid glPrint(const char* fmt, ...) {
+	float length = 0;
 	char text[256];
 	va_list ap;
 
@@ -470,8 +471,13 @@ GLvoid glPrint(const char* fmt, ...) {
 		vsprintf_s(text, fmt, ap);
 	va_end(ap);
 
+	for (unsigned int loop = 0; loop < strlen(text); loop++) {
+		length += gmf[text[loop]].gmfCellIncX;
+	}
+	glTranslatef(-length / 2.0f, 0.0f, 0.0f);
+
 	glPushAttrib(GL_LIST_BIT);
-	glListBase(base - 32);
+	glListBase(base);
 	glCallLists(strlen(text), GL_UNSIGNED_BYTE, text);
 	glPopAttrib();
 }
