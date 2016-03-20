@@ -27,11 +27,19 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
-GLfloat xrot;
-GLfloat yrot;
-GLfloat zrot;
+BOOL light;
+BOOL lp, fp;
 
-GLuint texture[1];
+GLfloat xrot, yrot;
+GLfloat xspeed, yspeed;
+GLfloat z = -5.0f;
+
+GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
+GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat LightPosition[] = { 0.0f, 0.0f, 2.0f, 1.0f };
+
+GLuint filter;
+GLuint texture[3];
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -64,6 +72,12 @@ int InitGL(GLvoid) {
 	glDepthFunc(GL_LEQUAL);
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
+	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
+	glEnable(GL_LIGHT1);
+
 	return TRUE;
 }
 
@@ -71,49 +85,53 @@ int DrawGLScene(GLvoid) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	glTranslatef(0.0f, 0.0f, -5.0f);
+	glTranslatef(0.0f, 0.0f, z);
 	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
 	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
-	glRotatef(zrot, 0.0f, 0.0f, 1.0f);
 
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glBindTexture(GL_TEXTURE_2D, texture[filter]);
 
 	glBegin(GL_QUADS);
 		// Front Face
+		glNormal3f(0.0f, 0.0f, 1.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, 1.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, 1.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, 1.0f);
 		// Back Face
+		glNormal3f(0.0f, 0.0f, -1.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
 		// Top Face
+		glNormal3f(0.0f, 1.0f, 0.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, 1.0f, 1.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
 		// Bottom Face
+		glNormal3f(0.0f, -1.0f, 0.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, -1.0f, -1.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f,- 1.0f, 1.0f);
 		// Right Face
+		glNormal3f(1.0f, 0.0f, 0.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
 		// Left Face
+		glNormal3f(-1.0f, 0.0f, 0.0f);
 		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
 		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
 	glEnd();
 
-	xrot += 0.03f;
-	yrot += 0.02f;
-	zrot += 0.04f;
+	xrot += xspeed;
+	yrot += yspeed;
 	return TRUE;
 }
 
@@ -343,14 +361,55 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				else {
 					DrawGLScene();
 					SwapBuffers(hDC);
-				}
-			}
-			if (keys[VK_F1]) {
-				keys[VK_F1] = FALSE;
-				KillGLWindow();
-				fullscreen = !fullscreen;
-				if (!CreateGLWindow("NeHe's OpenGL Framework", 640, 480, 16, fullscreen)) {
-					return 0;
+					if (keys['L'] && !lp) {
+						lp = TRUE;
+						light = !light;
+						if (!light) {
+							glDisable(GL_LIGHTING);
+						}
+						else {
+							glEnable(GL_LIGHTING);
+						}
+					}
+					if (!keys['L']) {
+						lp = FALSE;
+					}
+					if (keys['F'] && !fp) {
+						fp = TRUE;
+						filter += 1;
+						if (filter > 2) {
+							filter = 0;
+						}
+					}
+					if (!keys['F']) {
+						fp = FALSE;
+					}
+					if (keys['S']) {
+						z -= 0.02;
+					}
+					if (keys['W']) {
+						z += 0.02;
+					}
+					if (keys[VK_UP]) {
+						xspeed -= 0.01f;
+					}
+					if (keys[VK_DOWN]) {
+						xspeed += 0.01f;
+					}
+					if (keys[VK_RIGHT]) {
+						yspeed += 0.01f;
+					}
+					if (keys[VK_LEFT]) {
+						yspeed -= 0.01f;
+					}
+					if (keys[VK_F1]) {
+						keys[VK_F1] = FALSE;
+						KillGLWindow();
+						fullscreen = !fullscreen;
+						if (!CreateGLWindow("NeHe's OpenGL Framework", 640, 480, 16, fullscreen)) {
+							return 0;
+						}
+					}
 				}
 			}
 		}
@@ -362,19 +421,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 int LoadGLTextures() {
 
-	texture[0] = SOIL_load_OGL_texture
-		("Data/NeHe.bmp", SOIL_LOAD_AUTO,
-			SOIL_CREATE_NEW_ID,
-			SOIL_FLAG_INVERT_Y);
+	int width, height;
+	unsigned char* image = SOIL_load_image("Data/Crate.bmp", &width, &height, 0, SOIL_LOAD_RGB);
 	
-	if (texture[0] == 0) {
+	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
 		return FALSE;
 	}
+	glGenTextures(3, &texture[0]);
 
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+	glBindTexture(GL_TEXTURE_2D, texture[1]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+	glBindTexture(GL_TEXTURE_2D, texture[2]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	return TRUE;
 }
