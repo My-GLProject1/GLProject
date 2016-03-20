@@ -3,7 +3,23 @@
 #include <Windows.h>
 #include <gl/GL.h>
 #include <gl/GLU.h>
+#include <math.h>
 #include "SOIL.h"
+
+typedef struct tagVERTEX {
+	float x, y, z;
+	float u, v;
+} VERTEX;
+
+typedef struct tagTRIANGLE {
+	VERTEX vertex[3];
+} TRIANGLE;
+
+typedef struct tagSECTOR {
+	int numTraingle;
+	TRIANGLE* triangle;
+} SECTOR;
+
 
 Main::Main() {}
 
@@ -17,6 +33,8 @@ BOOL CreateGLWindow(char*, int, int, int, bool);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
 int LoadGLTextures();
+void readstr(FILE*, char*);
+void SetupWorld();
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -26,20 +44,26 @@ HINSTANCE hInstance;
 bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
+BOOL blend;
+BOOL fp, bp;
 
-BOOL light, blend;
-BOOL lp, fp, bp;
+const float piover180 = 0.0174532925f;
+float heading;
+float xpos;
+float zpos;
 
-GLfloat xrot, yrot;
-GLfloat xspeed, yspeed;
-GLfloat z = -5.0f;
+GLfloat	yrot;
+GLfloat walkbias = 0;
+GLfloat walkbiasangle = 0;
+GLfloat lookupdown = 0.0f;
+GLfloat	z = 0.0f;
 
-GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-GLfloat LightPosition[] = { 0.0f, 0.0f, 2.0f, 1.0f };
+SECTOR sector1;
 
 GLuint filter;
 GLuint texture[3];
+
+char* worldfile = "data\\world.txt";
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -76,65 +100,57 @@ int InitGL(GLvoid) {
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
-	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
-	glEnable(GL_LIGHT1);
-
+	SetupWorld();
 	return TRUE;
 }
 
 int DrawGLScene(GLvoid) {
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	glTranslatef(0.0f, 0.0f, z);
-	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
-	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
+	GLfloat x_m, y_m, z_m, u_m, v_m;
+	GLfloat xtrans = -xpos;
+	GLfloat ztrans = -zpos;
+	GLfloat ytrans = -walkbias - 0.25f;
+	GLfloat sceneroty = 360.0f - yrot;
 
-	glBindTexture(GL_TEXTURE_2D, texture[filter]);
+	int numtriangles;
 
-	glBegin(GL_QUADS);
-		// Front Face
+	glRotatef(lookupdown, 1.0f, 0, 0);
+	glRotatef(sceneroty, 0, 1.0f, 0);
+
+	glTranslatef(xtrans, ytrans, ztrans);
+	glBindTexture(GL_TEXTURE_2D, texture[filter]); 
+
+	numtriangles = sector1.numTraingle;
+
+	for (int loop_m = 0; loop_m < numtriangles; loop_m++)
+	{
+		glBegin(GL_TRIANGLES);
 		glNormal3f(0.0f, 0.0f, 1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f( 1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f( 1.0f,  1.0f, 1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f,  1.0f, 1.0f);
-		// Back Face
-		glNormal3f(0.0f, 0.0f, -1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		// Top Face
-		glNormal3f(0.0f, 1.0f, 0.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, 1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		// Bottom Face
-		glNormal3f(0.0f, -1.0f, 0.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f,- 1.0f, 1.0f);
-		// Right Face
-		glNormal3f(1.0f, 0.0f, 0.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
-		// Left Face
-		glNormal3f(-1.0f, 0.0f, 0.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-	glEnd();
+		x_m = sector1.triangle[loop_m].vertex[0].x;
+		y_m = sector1.triangle[loop_m].vertex[0].y;
+		z_m = sector1.triangle[loop_m].vertex[0].z;
+		u_m = sector1.triangle[loop_m].vertex[0].u;
+		v_m = sector1.triangle[loop_m].vertex[0].v;
+		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
 
-	xrot += xspeed;
-	yrot += yspeed;
+		x_m = sector1.triangle[loop_m].vertex[1].x;
+		y_m = sector1.triangle[loop_m].vertex[1].y;
+		z_m = sector1.triangle[loop_m].vertex[1].z;
+		u_m = sector1.triangle[loop_m].vertex[1].u;
+		v_m = sector1.triangle[loop_m].vertex[1].v;
+		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
+
+		x_m = sector1.triangle[loop_m].vertex[2].x;
+		y_m = sector1.triangle[loop_m].vertex[2].y;
+		z_m = sector1.triangle[loop_m].vertex[2].z;
+		u_m = sector1.triangle[loop_m].vertex[2].u;
+		v_m = sector1.triangle[loop_m].vertex[2].v;
+		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
+		glEnd();
+	}
 	return TRUE;
 }
 
@@ -364,19 +380,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				else {
 					DrawGLScene();
 					SwapBuffers(hDC);
-					if (keys['L'] && !lp) {
-						lp = TRUE;
-						light = !light;
-						if (!light) {
-							glDisable(GL_LIGHTING);
-						}
-						else {
-							glEnable(GL_LIGHTING);
-						}
-					}
-					if (!keys['L']) {
-						lp = FALSE;
-					}
 					if (keys['F'] && !fp) {
 						fp = TRUE;
 						filter += 1;
@@ -388,22 +391,53 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 						fp = FALSE;
 					}
 					if (keys['S']) {
-						z -= 0.02;
+						z -= 0.002f;
 					}
 					if (keys['W']) {
-						z += 0.02;
+						z += 0.002f;
 					}
 					if (keys[VK_UP]) {
-						xspeed -= 0.001f;
+						xpos -= (float)sin(heading*piover180) * 0.0005f;
+						zpos -= (float)cos(heading*piover180) * 0.0005f;
+						if (walkbiasangle >= 359.0f)
+						{
+							walkbiasangle = 0.0f;
+						}
+						else
+						{
+							walkbiasangle += 10;
+						}
+						walkbias = (float)sin(walkbiasangle * piover180) / 200.0f;
 					}
 					if (keys[VK_DOWN]) {
-						xspeed += 0.001f;
+						xpos += (float)sin(heading*piover180) * 0.0005f;
+						zpos += (float)cos(heading*piover180) * 0.0005f;
+						if (walkbiasangle <= 1.0f)
+						{
+							walkbiasangle = 359.0f;
+						}
+						else
+						{
+							walkbiasangle -= 10;
+						}
+						walkbias = (float)sin(walkbiasangle * piover180) / 200.0f;
 					}
 					if (keys[VK_RIGHT]) {
-						yspeed += 0.001f;
+						heading -= 0.05f;
+						yrot = heading;
 					}
 					if (keys[VK_LEFT]) {
-						yspeed -= 0.001f;
+						heading += 0.05f;
+						yrot = heading;
+					}
+					if (keys[VK_PRIOR])
+					{
+						lookupdown -= 1.0f;
+					}
+
+					if (keys[VK_NEXT])
+					{
+						lookupdown += 1.0f;
 					}
 					if (keys['B'] && !bp) {
 						bp = TRUE;
@@ -464,4 +498,43 @@ int LoadGLTextures() {
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	return TRUE;
+}
+
+void SetupWorld() {
+	FILE *filein;
+	fopen_s(&filein, worldfile , "rt");
+
+	int numtriangles;
+	char oneline[255];
+	float x, y, z, u, v;
+
+	readstr(filein, oneline);
+	sscanf_s(oneline, "NUMPOLLIES %d\n", &numtriangles);
+
+	sector1.triangle = new TRIANGLE[numtriangles];
+	sector1.numTraingle = numtriangles;
+
+	for (int triloop = 0; triloop < numtriangles; triloop++) {
+		for (int vertloop = 0; vertloop < 3; vertloop++) {
+			readstr(filein, oneline);
+			sscanf_s(oneline, "%f %f %f %f %f", &x, &y, &z, &u, &v);
+
+			sector1.triangle[triloop].vertex[vertloop].x = x;
+			sector1.triangle[triloop].vertex[vertloop].y = y;
+			sector1.triangle[triloop].vertex[vertloop].z = z;
+			sector1.triangle[triloop].vertex[vertloop].u = u;
+			sector1.triangle[triloop].vertex[vertloop].v = v;
+		}
+	}
+
+	fclose(filein);
+	return;
+}
+
+void readstr(FILE *f, char* string) {
+
+	do {
+		fgets(string, 255, f);
+	} while ((string[0] == '/') || (string[0] == '\n'));
+	return;
 }
