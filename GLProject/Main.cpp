@@ -51,9 +51,9 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 
 int InitGL(GLvoid) {
 
-	//if (!LoadGLTextures()) {
-		//return FALSE;
-	//}
+	if (!LoadGLTextures()) {
+		return FALSE;
+	}
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
@@ -111,9 +111,9 @@ int DrawGLScene(GLvoid) {
 		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
 	glEnd();
 
-	xrot += 0.3f;
-	yrot += 0.2f;
-	zrot += 0.4f;
+	xrot += 0.03f;
+	yrot += 0.02f;
+	zrot += 0.04f;
 	return TRUE;
 }
 
@@ -366,8 +366,9 @@ int LoadGLTextures() {
 		("Data/NeHe.bmp", SOIL_LOAD_AUTO,
 			SOIL_CREATE_NEW_ID,
 			SOIL_FLAG_INVERT_Y);
-
+	
 	if (texture[0] == 0) {
+		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
 		return FALSE;
 	}
 
