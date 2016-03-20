@@ -6,21 +6,6 @@
 #include <math.h>
 #include "SOIL.h"
 
-typedef struct tagVERTEX {
-	float x, y, z;
-	float u, v;
-} VERTEX;
-
-typedef struct tagTRIANGLE {
-	VERTEX vertex[3];
-} TRIANGLE;
-
-typedef struct tagSECTOR {
-	int numTraingle;
-	TRIANGLE* triangle;
-} SECTOR;
-
-
 Main::Main() {}
 
 Main::~Main() {}
@@ -33,8 +18,6 @@ BOOL CreateGLWindow(char*, int, int, int, bool);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
 int LoadGLTextures();
-void readstr(FILE*, char*);
-void SetupWorld();
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -44,26 +27,14 @@ HINSTANCE hInstance;
 bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
-BOOL blend;
-BOOL fp, bp;
 
-const float piover180 = 0.0174532925f;
-float heading;
-float xpos;
-float zpos;
+float points[45][45][3];
 
-GLfloat	yrot;
-GLfloat walkbias = 0;
-GLfloat walkbiasangle = 0;
-GLfloat lookupdown = 0.0f;
-GLfloat	z = 0.0f;
+int wiggle_count = 0;
+GLfloat hold;
+GLfloat xrot, yrot, zrot;
 
-SECTOR sector1;
-
-GLuint filter;
 GLuint texture[3];
-
-char* worldfile = "data\\world.txt";
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -91,8 +62,16 @@ int InitGL(GLvoid) {
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-	glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glPolygonMode(GL_BACK, GL_FILL);
+	glPolygonMode(GL_FRONT, GL_POINT);
+
+	for (int x = 0; x < 45; x++) {
+		for (int y = 0; y < 45; y++) {
+			points[x][y][0] = float((x / 5.0f) - 4.5f);
+			points[x][y][1] = float((y / 5.0f) - 4.5f);
+			points[x][y][2] = float(sin((((x / 5.0f) * 40.0f) / 360.0f) * 3.141592654f * 2.0f));
+		}
+	}
 
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
@@ -100,57 +79,62 @@ int InitGL(GLvoid) {
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-	SetupWorld();
 	return TRUE;
 }
 
 int DrawGLScene(GLvoid) {
 
+	int x, y;
+	float float_x, float_y, float_xb, float_yb;
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	GLfloat x_m, y_m, z_m, u_m, v_m;
-	GLfloat xtrans = -xpos;
-	GLfloat ztrans = -zpos;
-	GLfloat ytrans = -walkbias - 0.25f;
-	GLfloat sceneroty = 360.0f - yrot;
+	glTranslatef(0.0f, 0.0f, -12.0f);
 
-	int numtriangles;
+	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
+	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
+	glRotatef(zrot, 0.0f, 0.0f, 1.0f);
 
-	glRotatef(lookupdown, 1.0f, 0, 0);
-	glRotatef(sceneroty, 0, 1.0f, 0);
+	glBindTexture(GL_TEXTURE_2D, texture[0]); 
 
-	glTranslatef(xtrans, ytrans, ztrans);
-	glBindTexture(GL_TEXTURE_2D, texture[filter]); 
+	glBegin(GL_QUADS);
+		for (x = 0; x < 44; x++) {
+			for (y = 0; y < 44; y++) {
+				float_x = float(x) / 44.0f;
+				float_y = float(y) / 44.0f;
+				float_xb = float(x+1) / 44.0f;
+				float_yb = float(y+1) / 44.0f;
 
-	numtriangles = sector1.numTraingle;
+				glTexCoord2f(float_x, float_y);
+				glVertex3f(points[x][y][0], points[x][y][1], points[x][y][2]);
 
-	for (int loop_m = 0; loop_m < numtriangles; loop_m++)
-	{
-		glBegin(GL_TRIANGLES);
-		glNormal3f(0.0f, 0.0f, 1.0f);
-		x_m = sector1.triangle[loop_m].vertex[0].x;
-		y_m = sector1.triangle[loop_m].vertex[0].y;
-		z_m = sector1.triangle[loop_m].vertex[0].z;
-		u_m = sector1.triangle[loop_m].vertex[0].u;
-		v_m = sector1.triangle[loop_m].vertex[0].v;
-		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
+				glTexCoord2f(float_x, float_yb);
+				glVertex3f(points[x][y+1][0], points[x][y+1][1], points[x][y+1][2]);
 
-		x_m = sector1.triangle[loop_m].vertex[1].x;
-		y_m = sector1.triangle[loop_m].vertex[1].y;
-		z_m = sector1.triangle[loop_m].vertex[1].z;
-		u_m = sector1.triangle[loop_m].vertex[1].u;
-		v_m = sector1.triangle[loop_m].vertex[1].v;
-		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
+				glTexCoord2f(float_xb, float_yb);
+				glVertex3f(points[x+1][y+1][0], points[x+1][y+1][1], points[x+1][y+1][2]);
 
-		x_m = sector1.triangle[loop_m].vertex[2].x;
-		y_m = sector1.triangle[loop_m].vertex[2].y;
-		z_m = sector1.triangle[loop_m].vertex[2].z;
-		u_m = sector1.triangle[loop_m].vertex[2].u;
-		v_m = sector1.triangle[loop_m].vertex[2].v;
-		glTexCoord2f(u_m, v_m); glVertex3f(x_m, y_m, z_m);
-		glEnd();
+				glTexCoord2f(float_xb, float_y);
+				glVertex3f(points[x+1][y][0], points[x+1][y][1], points[x+1][y][2]);
+			}
+		}
+	glEnd();
+	if (wiggle_count == 20) {
+		for (y = 0; y < 45; y++) {
+			hold = points[0][y][2];
+			for (x = 0; x < 44; x++) {
+				points[x][y][2] = points[x + 1][y][2];
+			}
+			points[44][y][2] = hold;
+		}
+		wiggle_count = 0;
 	}
+	wiggle_count++;
+
+	xrot += 0.03f;
+	yrot += 0.02f;
+	zrot += 0.04f;
 	return TRUE;
 }
 
@@ -380,80 +364,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				else {
 					DrawGLScene();
 					SwapBuffers(hDC);
-					if (keys['F'] && !fp) {
-						fp = TRUE;
-						filter += 1;
-						if (filter > 2) {
-							filter = 0;
-						}
-					}
-					if (!keys['F']) {
-						fp = FALSE;
-					}
-					if (keys['S']) {
-						z -= 0.002f;
-					}
-					if (keys['W']) {
-						z += 0.002f;
-					}
-					if (keys[VK_UP]) {
-						xpos -= (float)sin(heading*piover180) * 0.0005f;
-						zpos -= (float)cos(heading*piover180) * 0.0005f;
-						if (walkbiasangle >= 359.0f)
-						{
-							walkbiasangle = 0.0f;
-						}
-						else
-						{
-							walkbiasangle += 10;
-						}
-						walkbias = (float)sin(walkbiasangle * piover180) / 200.0f;
-					}
-					if (keys[VK_DOWN]) {
-						xpos += (float)sin(heading*piover180) * 0.0005f;
-						zpos += (float)cos(heading*piover180) * 0.0005f;
-						if (walkbiasangle <= 1.0f)
-						{
-							walkbiasangle = 359.0f;
-						}
-						else
-						{
-							walkbiasangle -= 10;
-						}
-						walkbias = (float)sin(walkbiasangle * piover180) / 200.0f;
-					}
-					if (keys[VK_RIGHT]) {
-						heading -= 0.05f;
-						yrot = heading;
-					}
-					if (keys[VK_LEFT]) {
-						heading += 0.05f;
-						yrot = heading;
-					}
-					if (keys[VK_PRIOR])
-					{
-						lookupdown -= 1.0f;
-					}
-
-					if (keys[VK_NEXT])
-					{
-						lookupdown += 1.0f;
-					}
-					if (keys['B'] && !bp) {
-						bp = TRUE;
-						blend = !blend;
-						if (blend) {
-							glEnable(GL_BLEND);
-							glDisable(GL_DEPTH_TEST);
-						}
-						else {
-							glDisable(GL_BLEND);
-							glEnable(GL_DEPTH_TEST);
-						}
-					}
-					if (!keys['B']) {
-						bp = FALSE;
-					}
 					if (keys[VK_F1]) {
 						keys[VK_F1] = FALSE;
 						KillGLWindow();
@@ -474,7 +384,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 int LoadGLTextures() {
 
 	int width, height;
-	unsigned char* image = SOIL_load_image("Data/glass.bmp", &width, &height, 0, SOIL_LOAD_RGB);
+	unsigned char* image = SOIL_load_image("Data/Tim.bmp", &width, &height, 0, SOIL_LOAD_RGB);
 	
 	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
@@ -498,43 +408,4 @@ int LoadGLTextures() {
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	return TRUE;
-}
-
-void SetupWorld() {
-	FILE *filein;
-	fopen_s(&filein, worldfile , "rt");
-
-	int numtriangles;
-	char oneline[255];
-	float x, y, z, u, v;
-
-	readstr(filein, oneline);
-	sscanf_s(oneline, "NUMPOLLIES %d\n", &numtriangles);
-
-	sector1.triangle = new TRIANGLE[numtriangles];
-	sector1.numTraingle = numtriangles;
-
-	for (int triloop = 0; triloop < numtriangles; triloop++) {
-		for (int vertloop = 0; vertloop < 3; vertloop++) {
-			readstr(filein, oneline);
-			sscanf_s(oneline, "%f %f %f %f %f", &x, &y, &z, &u, &v);
-
-			sector1.triangle[triloop].vertex[vertloop].x = x;
-			sector1.triangle[triloop].vertex[vertloop].y = y;
-			sector1.triangle[triloop].vertex[vertloop].z = z;
-			sector1.triangle[triloop].vertex[vertloop].u = u;
-			sector1.triangle[triloop].vertex[vertloop].v = v;
-		}
-	}
-
-	fclose(filein);
-	return;
-}
-
-void readstr(FILE *f, char* string) {
-
-	do {
-		fgets(string, 255, f);
-	} while ((string[0] == '/') || (string[0] == '\n'));
-	return;
 }
