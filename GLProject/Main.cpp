@@ -1,5 +1,6 @@
 #include "Main.h"
 #include <stdio.h>
+#include <stdarg.h>
 #include <Windows.h>
 #include <gl/GL.h>
 #include <gl/GLU.h>
@@ -19,11 +20,17 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
 int LoadGLTextures();
 GLvoid BuildLists();
+GLvoid glPrint(const char*, ...);
+GLvoid KillFont(GLvoid);
+GLvoid BuildFont(GLvoid);
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
 HWND hwnd = NULL;
 HINSTANCE hInstance;
+
+GLuint base;
+GLfloat cnt1, cnt2;
 
 bool fullscreen = TRUE;
 bool active = TRUE;
@@ -78,15 +85,15 @@ int InitGL(GLvoid) {
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
+	BuildFont();
+
 	return TRUE;
 }
 
 int DrawGLScene(GLvoid) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	glBindTexture(GL_TEXTURE_2D, texture[0]);
-
 	for (yloop = 1; yloop < 6; yloop++) {
 		for (xloop = 0; xloop < yloop; xloop++) {
 			glLoadIdentity();
@@ -102,6 +109,14 @@ int DrawGLScene(GLvoid) {
 			glCallList(top);
 		}
 	}
+	glLoadIdentity();
+	glTranslatef(0.0f, 0.0f, -1.0f);
+	glColor3f(1.0f * float(cos(cnt1)), 1.0f * float(sin(cnt2)), 1.0f - 0.5f * float(cos(cnt1 + cnt2)));
+	glRasterPos2f(-0.5f, 0);
+	glPrint("Active OpenGL Text With NeHe - %7.2f", cnt1);
+
+	cnt1 += 0.051f;
+	cnt2 += 0.005f;
 	return TRUE;
 }
 
@@ -131,6 +146,8 @@ GLvoid KillGLWindow(GLvoid) {
 		MessageBox(NULL, "Could Not Unregister Class.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
 		hInstance = NULL;
 	}
+
+	KillFont();
 }
 
 BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscreenFlag) {
@@ -422,4 +439,39 @@ GLvoid BuildLists() {
 		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
 	glEnd();
 	glEndList();
+}
+
+GLvoid BuildFont(GLvoid) {
+	HFONT font;
+	HFONT oldfont;
+
+	base = glGenLists(96);
+
+	font = CreateFont(-24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, FF_DONTCARE | DEFAULT_PITCH, "Courier New");
+	oldfont = (HFONT)SelectObject(hDC, font);
+	wglUseFontBitmaps(hDC, 32, 96, base);
+	SelectObject(hDC, oldfont);
+	DeleteObject(font);
+}
+
+GLvoid KillFont(GLvoid) {
+	glDeleteLists(base, 96);
+}
+
+GLvoid glPrint(const char* fmt, ...) {
+	char text[256];
+	va_list ap;
+
+	if (fmt == NULL) {
+		return;
+	}
+
+	va_start(ap, fmt);
+		vsprintf_s(text, fmt, ap);
+	va_end(ap);
+
+	glPushAttrib(GL_LIST_BIT);
+	glListBase(base - 32);
+	glCallLists(strlen(text), GL_UNSIGNED_BYTE, text);
+	glPopAttrib();
 }
