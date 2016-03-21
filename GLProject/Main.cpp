@@ -18,10 +18,8 @@ static GLvoid ReSizeGLScene(GLsizei, GLsizei);
 BOOL CreateGLWindow(char*, int, int, int, bool);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
-int LoadGLTextures(char*, int);
-GLvoid glPrint(GLint, GLint, char*, int);
-GLvoid KillFont(GLvoid);
-GLvoid BuildFont(GLvoid);
+int LoadGLTextures();
+GLvoid glDrawCube();
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -32,8 +30,27 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
-GLuint base, texture[2], loop;
-GLfloat cnt1, cnt2;
+BOOL    light;
+BOOL    lp;
+BOOL    fp;
+BOOL	sp;
+
+int part1, part2, p1 = 0, p2 = 1;
+
+GLfloat xrot;
+GLfloat yrot;
+GLfloat xspeed;
+GLfloat yspeed;
+GLfloat z = -5.0f;
+
+GLUquadricObj *quadratic;
+
+GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
+GLfloat LightPosition[] = { 0.0f, 0.0f, 2.0f, 1.0f };
+
+GLuint texture[3];
+GLuint  filter, object = 0;
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -53,22 +70,28 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 
 int InitGL(GLvoid) {
 
-	if (!LoadGLTextures("Data/Font.bmp", 0)) {
+	if (!LoadGLTextures()) {
 		return FALSE;
 	}
-	if (!LoadGLTextures("Data/Bumps.bmp", 1)) {
-		return FALSE;
-	}
-	BuildFont();
+
+	quadratic = gluNewQuadric();
+	gluQuadricNormals(quadratic, GLU_SMOOTH);
+	gluQuadricTexture(quadratic, GL_TRUE);
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
 	glClearDepth(1.0f);
+	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
+	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
+	glEnable(GL_LIGHT1);
 
 	return TRUE;
 }
@@ -77,56 +100,51 @@ int DrawGLScene(GLvoid) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
+	glTranslatef(0.0f, 0.0f, z);
 
-	glBindTexture(GL_TEXTURE_2D, texture[1]);
-	glTranslatef(0.0f, 0.0f, -5.0f);
-	glRotatef(45.0f, 0.0f, 0.0f, 1.0f);
+	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
+	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
 
-	glRotatef(cnt1*30.0f, 1.0f, 1.0f, 1.0f);
-	glDisable(GL_BLEND);
-	glColor3f(1.0f, 1.0f, 1.0f);
+	glBindTexture(GL_TEXTURE_2D, texture[filter]);
 
-	glBegin(GL_QUADS);
-		glTexCoord2d(0.0f, 0.0f);
-		glVertex2f(-1.0f, 1.0f);
-		glTexCoord2d(1.0f, 0.0f);
-		glVertex2f(1.0f, 1.0f);
-		glTexCoord2d(1.0f, 1.0f);
-		glVertex2f(1.0f, -1.0f);
-		glTexCoord2d(0.0f, 1.0f);
-		glVertex2f(-1.0f, -1.0f);
-	glEnd();
+	switch (object) {
+	case 0:
+		glDrawCube();
+		break;
+	case 1:
+		glTranslatef(0.0f, 0.0f, -1.5f);
+		gluCylinder(quadratic, 1.0f, 1.0f, 3.0f, 32, 32);
+		break;
+	case 2:
+		gluDisk(quadratic, 0.5f, 1.5f, 32, 32);
+		break;
+	case 3:
+		gluSphere(quadratic, 1.3f, 32, 32);
+		break;
+	case 4:
+		glTranslatef(0.0f, 0.0f, -1.5f);
+		gluCylinder(quadratic, 1.0f, 0.0f, 3.0f, 32, 32);
+		break;
+	case 5:
+		part1 += p1;
+		part2 += p2;
+		
+		if (part1 > 359) {
+			p1 = 0;
+			part1 = 0;
+			p2 = 1;
+			part2 = 0;
+		}
+		if (part2 > 359) {
+			p1 = 1;
+			p2 = 0;
+		}
+		gluPartialDisk(quadratic, 0.5f, 1.5f, 32, 32, part1, part2 - part1);
+		break;
+	};
 
-	glRotatef(90.0f, 1.0f, 1.0f, 0.0f);
-
-	glBegin(GL_QUADS);
-		glTexCoord2d(0.0f, 0.0f);
-		glVertex2f(-1.0f, 1.0f);
-		glTexCoord2d(1.0f, 0.0f);
-		glVertex2f(1.0f, 1.0f);
-		glTexCoord2d(1.0f, 1.0f);
-		glVertex2f(1.0f, -1.0f);
-		glTexCoord2d(0.0f, 1.0f);
-		glVertex2f(-1.0f, -1.0f);
-	glEnd();
-
-	glEnable(GL_BLEND);
-	glLoadIdentity();
-
-	glColor3f(1.0f*float(cos(cnt1)), 1.0f*float(sin(cnt2)), 1.0f - 0.5f*float(cos(cnt1 + cnt2)));
-	glPrint(int((280 + 250 * cos(cnt1))), int(235 + 200 * sin(cnt2)), "NeHe", 0);
-
-	glColor3f(1.0f*float(sin(cnt2)), 1.0f - 0.5f*float(cos(cnt1 + cnt2)), 1.0f*float(cos(cnt1)));
-	glPrint(int((280 + 230 * cos(cnt2))), int(235 + 200 * sin(cnt1)), "OpenGL", 1);
-
-	glColor3f(0.0f, 0.0f, 1.0f);
-	glPrint(int(240 + 200 * cos((cnt2 + cnt1) / 5)), 2, "Giuseppe D'Agata", 0);
-
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glPrint(int(242 + 200 * cos((cnt2 + cnt1) / 5)), 2, "Giuseppe D'Agata", 0);
-
-	cnt1 += 0.0001f;
-	cnt2 += 0.00081f;
+	xrot += xspeed;
+	yrot += yspeed;
 	return TRUE;
 }
 
@@ -156,7 +174,7 @@ GLvoid KillGLWindow(GLvoid) {
 		MessageBox(NULL, "Could Not Unregister Class.", "SHUTDOWN ERROR", MB_OK | MB_ICONINFORMATION);
 		hInstance = NULL;
 	}
-	KillFont();
+
 }
 
 BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscreenFlag) {
@@ -357,6 +375,70 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				else {
 					DrawGLScene();
 					SwapBuffers(hDC);
+					if (keys['L'] && !lp)
+					{
+						lp = TRUE;
+						light = !light;
+						if (!light)
+						{
+							glDisable(GL_LIGHTING); 
+						}
+						else
+						{
+							glEnable(GL_LIGHTING);
+						}
+					}
+					if (!keys['L'])
+					{
+						lp = FALSE;
+					}
+					if (keys['F'] && !fp)
+					{
+						fp = TRUE;
+						filter += 1;
+						if (filter>2)
+						{
+							filter = 0;
+						}
+					}
+					if (!keys['F'])
+					{
+						fp = FALSE;
+					}
+					if (keys[' '] && !sp) {
+						sp = TRUE;
+						object++;
+						if (object > 5) {
+							object = 0;
+						}
+					}
+					if (!keys[' ']) {
+						sp = FALSE;
+					}
+					if (keys[VK_PRIOR])
+					{
+						z -= 0.002f;
+					}
+					if (keys[VK_NEXT])
+					{
+						z += 0.002f;
+					}
+					if (keys[VK_UP])
+					{
+						xspeed -= 0.001f;
+					}
+					if (keys[VK_DOWN])
+					{
+						xspeed += 0.001f;
+					}
+					if (keys[VK_RIGHT])
+					{
+						yspeed += 0.001f;
+					}
+					if (keys[VK_LEFT])
+					{
+						yspeed -= 0.001f;
+					}
 					if (keys[VK_F1]) {
 						keys[VK_F1] = FALSE;
 						KillGLWindow();
@@ -374,86 +456,74 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	return (msg.wParam);
 }
 
-int LoadGLTextures(char* text, int num) {
+int LoadGLTextures() {
 
 	int width, height;
-	unsigned char* image = SOIL_load_image(text, &width, &height, 0, SOIL_LOAD_RGB);
+	unsigned char* image = SOIL_load_image("Data/Crate.bmp", &width, &height, 0, SOIL_LOAD_RGB);
 	
 	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
 		return FALSE;
 	}
-	glGenTextures(1, &texture[num]);
+	glGenTextures(3, &texture[0]);
 
-	glBindTexture(GL_TEXTURE_2D, texture[num]);
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+	glBindTexture(GL_TEXTURE_2D, texture[1]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+	glBindTexture(GL_TEXTURE_2D, texture[2]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 
 	return TRUE;
 }
 
-GLvoid BuildFont(GLvoid) {
-	
-	float cx, cy;
+GLvoid glDrawCube() {
 
-	base = glGenLists(256);
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glBegin(GL_QUADS);
+		// Front Face
+		glNormal3f(0.0f, 0.0f, 1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
+		// Back Face
+		glNormal3f(0.0f, 0.0f, -1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		// Top Face
+		glNormal3f(0.0f, 1.0f, 0.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, 1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		// Bottom Face
+		glNormal3f(0.0f, -1.0f, 0.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
+		// Right face
+		glNormal3f(1.0f, 0.0f, 0.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
+		// Left Face
+		glNormal3f(-1.0f, 0.0f, 0.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
+	glEnd();
 
-	for (loop = 0; loop < 256; loop++) {
-		cx = float(loop % 16) / 16.0f;
-		cy = float(loop / 16) / 16.0f;
-
-		glNewList(base + loop, GL_COMPILE);
-			glBegin(GL_QUADS);
-				glTexCoord2f(cx, 1 - cy - 0.0625f);
-				glVertex2i(0, 0);
-
-				glTexCoord2f(cx + 0.0625f, 1 - cy - 0.0625f);
-				glVertex2i(16, 0);
-
-				glTexCoord2f(cx + 0.0625f, 1 - cy);
-				glVertex2i(16, 16);
-
-				glTexCoord2f(cx, 1 - cy);
-				glVertex2i(0, 16);
-			glEnd();
-			glTranslated(10, 0, 0);
-		glEndList();
-	}
-}
-
-GLvoid KillFont(GLvoid) {
-	glDeleteLists(base, 256);
-}
-
-GLvoid glPrint(GLint x, GLint y, char* string, int set) {
-
-	if (set > 1) {
-		set = 1;
-	}
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
-
-	glDisable(GL_DEPTH_TEST);
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-
-	glOrtho(0, 640, 0, 480, -1, 1);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-
-	glTranslated(x, y, 0);
-	glListBase(base - 32 + (128 * set));
-
-	glCallLists(strlen(string), GL_UNSIGNED_BYTE, string);
-
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	glEnable(GL_DEPTH_TEST);
 }
