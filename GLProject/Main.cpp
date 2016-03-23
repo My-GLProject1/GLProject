@@ -18,8 +18,10 @@ static GLvoid ReSizeGLScene(GLsizei, GLsizei);
 BOOL CreateGLWindow(char*, int, int, int, bool);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
-int LoadGLTextures();
-GLvoid glDrawCube();
+int LoadGLTextures(char*, int);
+GLvoid DrawFloor();
+GLvoid glDrawObject();
+void ProcessKeyboard();
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -30,27 +32,20 @@ bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
 
-BOOL    light;
-BOOL    lp;
-BOOL    fp;
-BOOL	sp;
+GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+GLfloat LightAmbient[] = { 0.7f, 0.7f, 0.7f, 1.0f };
+GLfloat LightPosition[] = { 4.0f, 4.0f, 6.0f, 1.0f };
 
-int part1, part2, p1 = 0, p2 = 1;
-
-GLfloat xrot;
-GLfloat yrot;
-GLfloat xspeed;
-GLfloat yspeed;
-GLfloat z = -5.0f;
+GLfloat xrot = 0.0f;
+GLfloat yrot = 0.0f;
+GLfloat xspeed = 0.0f;
+GLfloat yspeed = 0.0f;
+GLfloat z = -7.0f;
+GLfloat height = 2.0f;
 
 GLUquadricObj *quadratic;
 
-GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-GLfloat LightAmbient[] = { 0.5f, 0.5f, 0.5f, 1.0f };
-GLfloat LightPosition[] = { 0.0f, 0.0f, 2.0f, 1.0f };
-
 GLuint texture[3];
-GLuint  filter, object = 0;
 
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 	if (height == 0) {
@@ -70,81 +65,96 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height) {
 
 int InitGL(GLvoid) {
 
-	if (!LoadGLTextures()) {
+	if (!LoadGLTextures("Data/Envwall.bmp", 0)) {
 		return FALSE;
 	}
+	if (!LoadGLTextures("Data/Ball.bmp", 1)) {
+		return FALSE;
+	}
+	if (!LoadGLTextures("Data/Envroll.bmp", 2)) {
+		return FALSE;
+	}
+
+	glShadeModel(GL_SMOOTH);
+	glClearColor(0.2f, 0.5f, 1.0f, 1.0f);
+	glClearDepth(1.0f);
+	glClearStencil(0);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+	glEnable(GL_TEXTURE_2D);
+
+	glLightfv(GL_LIGHT0, GL_AMBIENT, LightAmbient);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, LightDiffuse);
+	glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHTING);
 
 	quadratic = gluNewQuadric();
 	gluQuadricNormals(quadratic, GLU_SMOOTH);
 	gluQuadricTexture(quadratic, GL_TRUE);
 
-	glEnable(GL_TEXTURE_2D);
-	glShadeModel(GL_SMOOTH);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-	glClearDepth(1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-
-	glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);
-	glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
-	glEnable(GL_LIGHT1);
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 
 	return TRUE;
 }
 
 int DrawGLScene(GLvoid) {
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glLoadIdentity();
-	glTranslatef(0.0f, 0.0f, z);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+	double eqr[] = { 0.0f, -1.0f, 0.0f, 0.0f };
+	glLoadIdentity();
+	glTranslatef(0.0f, -1.0f, z);
+
+	glColorMask(0, 0, 0, 0);
+
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_ALWAYS, 1, 1);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+	glDisable(GL_DEPTH_TEST);
+	DrawFloor();
+
+	glEnable(GL_DEPTH_TEST);
+	glColorMask(1, 1, 1, 1);
+	glStencilFunc(GL_EQUAL, 1, 1);
+
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	glEnable(GL_CLIP_PLANE0);
+
+	glClipPlane(GL_CLIP_PLANE0, eqr);
+	glPushMatrix();
+		glScalef(1.0f, -1.0f, 1.0f);
+		glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
+		glTranslatef(0.0f, height, 0.0f);
+		glRotatef(xrot, 1.0f, 0.0f, 0.0f);
+		glRotatef(yrot, 0.0f, 1.0f, 0.0f);
+		glDrawObject();
+	glPopMatrix();
+	glDisable(GL_CLIP_PLANE0);
+	glDisable(GL_STENCIL_TEST);
+
+	glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
+	glEnable(GL_BLEND);
+	glDisable(GL_LIGHTING);
+	glColor4f(1.0f, 1.0f, 1.0f, 0.8f);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	DrawFloor();
+
+	glEnable(GL_LIGHTING);
+	glDisable(GL_BLEND);
+	glTranslatef(0.0f, height, 0.0f);
 	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
 	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
-
-	glBindTexture(GL_TEXTURE_2D, texture[filter]);
-
-	switch (object) {
-	case 0:
-		glDrawCube();
-		break;
-	case 1:
-		glTranslatef(0.0f, 0.0f, -1.5f);
-		gluCylinder(quadratic, 1.0f, 1.0f, 3.0f, 32, 32);
-		break;
-	case 2:
-		gluDisk(quadratic, 0.5f, 1.5f, 32, 32);
-		break;
-	case 3:
-		gluSphere(quadratic, 1.3f, 32, 32);
-		break;
-	case 4:
-		glTranslatef(0.0f, 0.0f, -1.5f);
-		gluCylinder(quadratic, 1.0f, 0.0f, 3.0f, 32, 32);
-		break;
-	case 5:
-		part1 += p1;
-		part2 += p2;
-		
-		if (part1 > 359) {
-			p1 = 0;
-			part1 = 0;
-			p2 = 1;
-			part2 = 0;
-		}
-		if (part2 > 359) {
-			p1 = 1;
-			p2 = 0;
-		}
-		gluPartialDisk(quadratic, 0.5f, 1.5f, 32, 32, part1, part2 - part1);
-		break;
-	};
+	glDrawObject();
 
 	xrot += xspeed;
 	yrot += yspeed;
+	glFlush();
+
 	return TRUE;
 }
 
@@ -262,7 +272,7 @@ BOOL CreateGLWindow(char* title, int width, int height, int bits, bool fullscree
 		PFD_TYPE_RGBA,
 		bits, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0,
-		16, 0, 0,
+		16, 1, 0,
 		PFD_MAIN_PLANE, 0, 0, 0, 0
 	};
 
@@ -375,70 +385,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				else {
 					DrawGLScene();
 					SwapBuffers(hDC);
-					if (keys['L'] && !lp)
-					{
-						lp = TRUE;
-						light = !light;
-						if (!light)
-						{
-							glDisable(GL_LIGHTING); 
-						}
-						else
-						{
-							glEnable(GL_LIGHTING);
-						}
-					}
-					if (!keys['L'])
-					{
-						lp = FALSE;
-					}
-					if (keys['F'] && !fp)
-					{
-						fp = TRUE;
-						filter += 1;
-						if (filter>2)
-						{
-							filter = 0;
-						}
-					}
-					if (!keys['F'])
-					{
-						fp = FALSE;
-					}
-					if (keys[' '] && !sp) {
-						sp = TRUE;
-						object++;
-						if (object > 5) {
-							object = 0;
-						}
-					}
-					if (!keys[' ']) {
-						sp = FALSE;
-					}
-					if (keys[VK_PRIOR])
-					{
-						z -= 0.002f;
-					}
-					if (keys[VK_NEXT])
-					{
-						z += 0.002f;
-					}
-					if (keys[VK_UP])
-					{
-						xspeed -= 0.001f;
-					}
-					if (keys[VK_DOWN])
-					{
-						xspeed += 0.001f;
-					}
-					if (keys[VK_RIGHT])
-					{
-						yspeed += 0.001f;
-					}
-					if (keys[VK_LEFT])
-					{
-						yspeed -= 0.001f;
-					}
+					ProcessKeyboard();
 					if (keys[VK_F1]) {
 						keys[VK_F1] = FALSE;
 						KillGLWindow();
@@ -456,74 +403,73 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	return (msg.wParam);
 }
 
-int LoadGLTextures() {
+int LoadGLTextures(char* text, int num) {
 
 	int width, height;
-	unsigned char* image = SOIL_load_image("Data/Crate.bmp", &width, &height, 0, SOIL_LOAD_RGB);
+	unsigned char* image = SOIL_load_image(text, &width, &height, 0, SOIL_LOAD_RGB);
 	
 	if (image == NULL) {
 		MessageBox(NULL, "Error Loading Texture.", "ERROR", MB_OK | MB_ICONINFORMATION);
 		return FALSE;
 	}
-	glGenTextures(3, &texture[0]);
+	glGenTextures(1, &texture[num]);
 
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
+	glBindTexture(GL_TEXTURE_2D, texture[num]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-
-	glBindTexture(GL_TEXTURE_2D, texture[1]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-
-	glBindTexture(GL_TEXTURE_2D, texture[2]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-
 	return TRUE;
 }
 
-GLvoid glDrawCube() {
+GLvoid glDrawObject() {
 
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glBindTexture(GL_TEXTURE_2D, texture[1]);
+	gluSphere(quadratic, 0.35f, 32, 16);
+
+	glBindTexture(GL_TEXTURE_2D, texture[2]);
+	glColor4f(1.0f, 1.0f, 1.0f, 0.4f);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnable(GL_TEXTURE_GEN_S);
+	glEnable(GL_TEXTURE_GEN_T);
+
+	gluSphere(quadratic, 0.35f, 32, 16);
+
+	glDisable(GL_TEXTURE_GEN_S);
+	glDisable(GL_TEXTURE_GEN_T);
+	glDisable(GL_BLEND);
+
+}
+
+GLvoid DrawFloor() {
+
+	glBindTexture(GL_TEXTURE_2D, texture[0]);
 	glBegin(GL_QUADS);
-		// Front Face
-		glNormal3f(0.0f, 0.0f, 1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
-		// Back Face
-		glNormal3f(0.0f, 0.0f, -1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		// Top Face
 		glNormal3f(0.0f, 1.0f, 0.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, 1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		// Bottom Face
-		glNormal3f(0.0f, -1.0f, 0.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
-		// Right face
-		glNormal3f(1.0f, 0.0f, 0.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(1.0f, 1.0f, -1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(1.0f, 1.0f, 1.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(1.0f, -1.0f, 1.0f);
-		// Left Face
-		glNormal3f(-1.0f, 0.0f, 0.0f);
-		glTexCoord2f(0.0f, 0.0f); glVertex3f(-1.0f, -1.0f, -1.0f);
-		glTexCoord2f(1.0f, 0.0f); glVertex3f(-1.0f, -1.0f, 1.0f);
-		glTexCoord2f(1.0f, 1.0f); glVertex3f(-1.0f, 1.0f, 1.0f);
-		glTexCoord2f(0.0f, 1.0f); glVertex3f(-1.0f, 1.0f, -1.0f);
-	glEnd();
+			glTexCoord2f(0.0f, 1.0f);
+			glVertex3f(-2.0f, 0.0f, 2.0f);
 
+			glTexCoord2f(0.0f, 0.0f);
+			glVertex3f(-2.0f, 0.0f, -2.0f);
+
+			glTexCoord2f(1.0f, 0.0f);
+			glVertex3f(2.0f, 0.0f, -2.0f);
+
+			glTexCoord2f(1.0f, 1.0f);
+			glVertex3f(2.0f, 0.0f, 2.0f);
+	glEnd();
+}
+
+void ProcessKeyboard() {
+	if (keys[VK_RIGHT]) yspeed += 0.008f;
+	if (keys[VK_LEFT]) yspeed -= 0.008f;
+	if (keys[VK_UP]) xspeed += 0.008f;
+	if (keys[VK_DOWN]) xspeed -= 0.008f;
+
+	if (keys['A']) z += 0.005f;
+	if (keys['Z']) z -= 0.005f;
+
+	if (keys[VK_PRIOR]) height += 0.003f;
+	if (keys[VK_NEXT]) height -= 0.003f;
 }
