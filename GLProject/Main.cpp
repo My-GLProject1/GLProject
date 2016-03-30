@@ -6,6 +6,8 @@
 #include <gl/GLU.h>
 #include <math.h>
 #include "SOIL.h"
+#include <array>
+#define GL_PI 3.14159265359
 
 Main::Main() {}
 
@@ -22,6 +24,7 @@ int LoadGLTextures(char*, int);
 GLvoid DrawFloor();
 GLvoid glDrawObject();
 void ProcessKeyboard();
+void useBuffers(float*, int, float*, int);
 
 HGLRC hRC = NULL;
 HDC hDC = NULL;
@@ -31,6 +34,7 @@ HINSTANCE hInstance;
 bool fullscreen = TRUE;
 bool active = TRUE;
 bool keys[256];
+BOOL waveFlag = TRUE;
 
 GLfloat LightDiffuse[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 GLfloat LightAmbient[] = { 0.7f, 0.7f, 0.7f, 1.0f };
@@ -39,11 +43,22 @@ GLfloat LightPosition[] = { 4.0f, 4.0f, 6.0f, 1.0f };
 GLfloat xrot = 0.0f;
 GLfloat yrot = 0.0f;
 GLfloat xspeed = 0.0f;
-GLfloat yspeed = 0.0f;
-GLfloat z = -7.0f;
+GLfloat yspeed = 0.0f, wave = 0.0f;
+GLfloat z = -7.0f, x = 0.0f, y = 0.0f, x2 = 0;
 GLfloat height = 2.0f;
 
 GLUquadricObj *quadratic;
+
+static float vertex_buffer[] = {
+	-10.0f, 0.0f, -10.0f,
+	-10.0f, 0.0f, -9.0f,
+	-9.0f, 0.0f,- 10.0f,
+	-9.0f, 0.0f, -9.0f,
+};
+
+static float indices_buffer[] = {
+	0, 1, 2, 3
+};
 
 GLuint texture[3];
 
@@ -106,7 +121,8 @@ int DrawGLScene(GLvoid) {
 
 	double eqr[] = { 0.0f, -1.0f, 0.0f, 0.0f };
 	glLoadIdentity();
-	glTranslatef(0.0f, -1.0f, z);
+	glTranslatef(x2, -1.0f, z);
+	glRotatef(90.0f, 0.0f, 1.0f, 0.0f);
 
 	glColorMask(0, 0, 0, 0);
 
@@ -128,7 +144,7 @@ int DrawGLScene(GLvoid) {
 	glPushMatrix();
 		glScalef(1.0f, -1.0f, 1.0f);
 		glLightfv(GL_LIGHT0, GL_POSITION, LightPosition);
-		glTranslatef(0.0f, height, 0.0f);
+		glTranslatef(x, height, y);
 		glRotatef(xrot, 1.0f, 0.0f, 0.0f);
 		glRotatef(yrot, 0.0f, 1.0f, 0.0f);
 		glDrawObject();
@@ -146,13 +162,15 @@ int DrawGLScene(GLvoid) {
 
 	glEnable(GL_LIGHTING);
 	glDisable(GL_BLEND);
-	glTranslatef(0.0f, height, 0.0f);
+	glTranslatef(x, height, y);
 	glRotatef(xrot, 1.0f, 0.0f, 0.0f);
 	glRotatef(yrot, 0.0f, 1.0f, 0.0f);
 	glDrawObject();
 
 	xrot += xspeed;
 	yrot += yspeed;
+	wave += 0.005f;
+
 	glFlush();
 
 	return TRUE;
@@ -443,22 +461,18 @@ GLvoid glDrawObject() {
 }
 
 GLvoid DrawFloor() {
+	int num = 1;
+	GLfloat pointx = 1.0f, pointy = -1.0f;
+	int indices_size = sizeof(indices_buffer) / sizeof(indices_buffer[0]);
+	int vertex_size = sizeof(vertex_buffer) / sizeof(vertex_buffer[0]);
 
-	glBindTexture(GL_TEXTURE_2D, texture[0]);
-	glBegin(GL_QUADS);
-		glNormal3f(0.0f, 1.0f, 0.0f);
-			glTexCoord2f(0.0f, 1.0f);
-			glVertex3f(-2.0f, 0.0f, 2.0f);
-
-			glTexCoord2f(0.0f, 0.0f);
-			glVertex3f(-2.0f, 0.0f, -2.0f);
-
-			glTexCoord2f(1.0f, 0.0f);
-			glVertex3f(2.0f, 0.0f, -2.0f);
-
-			glTexCoord2f(1.0f, 1.0f);
-			glVertex3f(2.0f, 0.0f, 2.0f);
-	glEnd();
+	useBuffers(vertex_buffer, vertex_size, indices_buffer, indices_size);
+	/*if (wave > 1.0f) {
+		waveFlag = FALSE;
+	}
+	else if (wave < 0.0f) {
+		waveFlag = TRUE;
+	}*/
 }
 
 void ProcessKeyboard() {
@@ -467,9 +481,39 @@ void ProcessKeyboard() {
 	if (keys[VK_UP]) xspeed += 0.008f;
 	if (keys[VK_DOWN]) xspeed -= 0.008f;
 
-	if (keys['A']) z += 0.005f;
-	if (keys['Z']) z -= 0.005f;
+	if (keys['Z']) z += 0.005f;
+	if (keys['X']) z -= 0.005f;
+	if (keys['C']) x2 += 0.005f;
+	if (keys['V']) x2 -= 0.005f;
+	if (keys['W']) y -= 0.005f;
+	if (keys['S']) y += 0.005f;
+	if (keys['A']) x -= 0.005f;
+	if (keys['D']) x += 0.005f;
+	if (keys['L']) wave += 0.005;
+	if (keys['K']) wave -= 0.005;
 
 	if (keys[VK_PRIOR]) height += 0.003f;
 	if (keys[VK_NEXT]) height -= 0.003f;
+}
+
+void useBuffers(float* vertices, int vert_size, float* indices, int ind_size) {
+	int finali = 0;
+	int first, second, third, forth;
+	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	for (int x = 0; x < 20; x++) {
+		for (int z = 0; z < 20; z++) {
+			for (int i = 0; i < ind_size; i += 4) {
+				first = indices[i]; second = indices[i + 1]; third = indices[i + 2]; forth = indices[i + 3];
+				glBegin(GL_TRIANGLE_STRIP);
+					glNormal3f(0.0f, 1.0f, 0.0f);
+					glColor4f(0.0f, 0.0f, 1.0f, 0.2f);
+					glVertex3f(vertices[first * 3] + x, vertices[(first * 3) + 1] + sin((wave + z)) / 10, vertices[(first * 3) + 2] + z);
+					glVertex3f(vertices[second * 3] + x, vertices[(second * 3) + 1] + sin((wave + z)) / 10, vertices[(second * 3) + 2] + z);
+					glVertex3f(vertices[third * 3] + x, vertices[(third * 3) + 1] + sin((wave + z)) / 10, vertices[(third * 3) + 2] + z);
+					glVertex3f(vertices[forth * 3] + x, vertices[(forth * 3) + 1] + sin((wave + z)) / 10, vertices[(forth * 3) + 2] + z);
+				glEnd();
+			}
+		}
+	}
+
 }
